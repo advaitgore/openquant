@@ -1,0 +1,45 @@
+# Data source configuration for OpenQuant
+# This file defines the data sources and their settings
+
+data_provider: yfinance
+
+# Default tickers to ingest
+default_tickers:
+  - SPY
+  - AAPL
+  - MSFT
+  - GOOGL
+  - AMZN
+  - TSLA
+  - NVDA
+  - META
+
+# Ingestion settings
+ingestion:
+  # Lookback period in days
+  lookback_days: 365
+  
+  # Schedule for automated ingestion
+  schedule:
+    # Run daily after market close (4:30 PM ET)
+    daily:
+      enabled: true
+      hour: 16
+      minute: 30
+      timezone: America/New_York
+    
+    # Or run on interval
+    interval:
+      enabled: false
+      hours: 1
+      minutes: 0
+
+# Provider-specific settings
+providers:
+  yfinance:
+    # Rate limiting (requests per second)
+    rate_limit: 2.0
+    
+    # Retry settings
+    max_retries: 3
+    retry_delay: 2
