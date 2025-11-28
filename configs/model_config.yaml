@@ -1,0 +1,62 @@
+# Model training configuration for OpenQuant
+
+# Ticker to train on
+ticker: SPY
+
+# Model type (xgboost, lightgbm, random_forest, linear_regression)
+model_type: xgboost
+
+# Features to use for training
+feature_names:
+  - sma_20
+  - sma_50
+  - rsi_14
+  - macd
+  - bb_upper
+  - bb_lower
+  - volume_ratio
+  - returns
+  - volatility_20
+
+# Model hyperparameters
+model_params:
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  random_state: 42
+
+# Target variable (returns, Close, etc.)
+target: returns
+
+# Number of days ahead to predict
+lookback_days: 1
+
+# Test set size (0.0 to 1.0)
+test_size: 0.2
+
+# Date range (optional, uses all available data if not specified)
+start_date: null
+end_date: null
+
+# Whether to use feature cache
+use_cache: true
+
+# Training settings
+training:
+  # Early stopping rounds (for tree-based models)
+  early_stopping_rounds: 10
+  
+  # Validation split
+  validation_split: 0.1
+  
+  # Verbose output
+  verbose: true
+
+# Model registry settings
+registry:
+  # Auto-register trained models
+  auto_register: true
+  
+  # Model stage (None, Staging, Production, Archived)
+  stage: null
+
