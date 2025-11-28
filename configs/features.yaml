@@ -1,0 +1,100 @@
+# Feature engineering configuration for OpenQuant
+# This file defines which features to compute and their parameters
+
+# Feature groups
+feature_groups:
+  # Technical indicators
+  technical:
+    - sma_5
+    - sma_10
+    - sma_20
+    - sma_50
+    - ema_12
+    - ema_26
+    - rsi_14
+    - macd
+    - macd_signal
+    - macd_histogram
+    - bb_upper
+    - bb_middle
+    - bb_lower
+    - atr_14
+
+  # Volume features
+  volume:
+    - volume_sma_20
+    - volume_ratio
+
+  # Price features
+  price:
+    - returns
+    - log_returns
+    - high_low_ratio
+    - close_open_ratio
+
+  # Volatility features
+  volatility:
+    - volatility_20
+
+# Default features to compute (if not specified)
+default_features:
+  - sma_20
+  - sma_50
+  - rsi_14
+  - macd
+  - bb_upper
+  - bb_lower
+  - volume_ratio
+  - returns
+  - volatility_20
+
+# Feature computation settings
+settings:
+  # Minimum number of rows required for feature computation
+  min_rows: 50
+  
+  # Whether to use Redis caching
+  use_cache: true
+  
+  # Cache TTL in seconds (default from settings)
+  cache_ttl: null
+  
+  # Whether to fill NaN values
+  fill_na: true
+  
+  # Method to fill NaN (forward, backward, zero, mean)
+  fill_method: forward
+
+# Feature-specific configurations
+feature_configs:
+  sma_5:
+    length: 5
+    description: "5-day simple moving average"
+  
+  sma_10:
+    length: 10
+    description: "10-day simple moving average"
+  
+  sma_20:
+    length: 20
+    description: "20-day simple moving average"
+  
+  sma_50:
+    length: 50
+    description: "50-day simple moving average"
+  
+  rsi_14:
+    length: 14
+    description: "14-period RSI"
+  
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+    description: "MACD line"
+  
+  bb_upper:
+    length: 20
+    std: 2.0
+    description: "Bollinger Band upper"
+
