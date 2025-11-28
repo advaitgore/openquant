@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # Redis service for caching
+  redis:
+    image: redis:7-alpine
+    container_name: openquant-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openquant-network
+
+  # DuckDB data storage (shared volume)
+  # Note: DuckDB is file-based, so we use a volume for persistence
+  data:
+    image: alpine:latest
+    container_name: openquant-data
+    volumes:
+      - duckdb-data:/app/data
+      - mlflow-data:/app/mlruns
+      - models-data:/app/models
+    command: tail -f /dev/null
+    networks:
+      - openquant-network
+
+  # FastAPI service
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: openquant-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DUCKDB_PATH=/app/data/openquant.duckdb
+      - REDIS_URL=redis://redis:6379/0
+      - MLFLOW_TRACKING_URI=file:/app/mlruns
+      - MLFLOW_EXPERIMENT_NAME=openquant
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - duckdb-data:/app/data
+      - mlflow-data:/app/mlruns
+      - models-data:/app/models
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      data:
+        condition: service_started
+    networks:
+      - openquant-network
+    restart: unless-stopped
+
+  # Streamlit dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: openquant-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - DUCKDB_PATH=/app/data/openquant.duckdb
+      - REDIS_URL=redis://redis:6379/0
+      - MLFLOW_TRACKING_URI=file:/app/mlruns
+      - MLFLOW_EXPERIMENT_NAME=openquant
+      - API_HOST=api
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - duckdb-data:/app/data
+      - mlflow-data:/app/mlruns
+      - models-data:/app/models
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      data:
+        condition: service_started
+    networks:
+      - openquant-network
+    restart: unless-stopped
+
+  # Worker service for background tasks (data ingestion, etc.)
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: openquant-worker
+    environment:
+      - DUCKDB_PATH=/app/data/openquant.duckdb
+      - REDIS_URL=redis://redis:6379/0
+      - MLFLOW_TRACKING_URI=file:/app/mlruns
+      - MLFLOW_EXPERIMENT_NAME=openquant
+      - LOG_LEVEL=INFO
+    volumes:
+      - duckdb-data:/app/data
+      - mlflow-data:/app/mlruns
+      - models-data:/app/models
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      data:
+        condition: service_started
+    networks:
+      - openquant-network
+    restart: unless-stopped
+    # Override command for specific tasks
+    # Example: command: ["python", "scripts/run_ingestion.py"]
+    # Or leave default for scheduler
+
+volumes:
+  redis-data:
+    driver: local
+  duckdb-data:
+    driver: local
+  mlflow-data:
+    driver: local
+  models-data:
+    driver: local
+
+networks:
+  openquant-network:
+    driver: bridge
+

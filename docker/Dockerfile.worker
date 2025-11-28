@@ -1,0 +1,31 @@
+# Worker service Dockerfile for background tasks
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for faster package management
+RUN pip install --no-cache-dir uv
+
+# Copy dependency files
+COPY pyproject.toml ./
+
+# Install dependencies
+RUN uv pip install --system --no-cache -e .
+
+# Copy application code
+COPY src/ ./src/
+COPY configs/ ./configs/
+COPY scripts/ ./scripts/
+
+# Create necessary directories
+RUN mkdir -p data models logs mlruns
+
+# Default command (can be overridden in docker-compose)
+CMD ["python", "-m", "openquant.ingestion.scheduler"]
+
