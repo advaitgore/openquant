@@ -103,3 +103,84 @@ class IngestionScheduler:
             True if scheduler is running, False otherwise.
         """
         return self._is_running
+
+
+def run_ingestion_job() -> None:
+    """Run data ingestion for configured tickers."""
+    from openquant.ingestion.providers import get_provider
+    from openquant.ingestion.storage import DuckDBStorage
+    from openquant.utils.logging import setup_logging
+    from openquant.utils.time import get_lookback_date, today
+
+    setup_logging()
+    logger.info("Running scheduled data ingestion")
+
+    # Initialize storage
+    storage = DuckDBStorage(settings.DUCKDB_PATH)
+    storage.initialize_schema()
+
+    # Get date range
+    end_date = today()
+    start_date = get_lookback_date(days=365)
+
+    logger.info(f"Ingesting data from {start_date} to {end_date}")
+
+    # Ingest each ticker
+    tickers = settings.DEFAULT_TICKERS
+    provider_name = settings.DATA_PROVIDER
+
+    for ticker in tickers:
+        try:
+            logger.info(f"Starting ingestion for {ticker}")
+
+            # Check latest date in database
+            latest_date = storage.get_latest_date(ticker)
+            if latest_date and latest_date >= start_date:
+                fetch_start = latest_date
+                logger.info(f"Found existing data up to {latest_date}, fetching from {fetch_start}")
+            else:
+                fetch_start = start_date
+
+            # Fetch data
+            provider = get_provider(provider_name)
+            df = provider.fetch_ohlcv(ticker, fetch_start, end_date)
+
+            if df.empty:
+                logger.warning(f"No new data for {ticker}")
+                continue
+
+            # Store data
+            storage.upsert_ohlcv(df)
+            logger.info(f"Successfully ingested {len(df)} rows for {ticker}")
+
+        except Exception as e:
+            logger.error(f"Error ingesting {ticker}: {e}")
+            continue
+
+    logger.info("Scheduled data ingestion completed")
+
+
+def main() -> None:
+    """Main entry point for the scheduler."""
+    from openquant.utils.logging import setup_logging
+
+    setup_logging()
+    logger.info("Initializing ingestion scheduler")
+
+    # Create scheduler
+    scheduler = IngestionScheduler()
+
+    # Schedule daily ingestion at market close (4:30 PM ET)
+    scheduler.add_daily_job(
+        run_ingestion_job,
+        hour=16,
+        minute=30,
+        timezone="America/New_York",
+    )
+
+    # Start the scheduler
+    scheduler.start()
+
+
+if __name__ == "__main__":
+    main()

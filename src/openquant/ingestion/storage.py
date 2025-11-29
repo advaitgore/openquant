@@ -93,8 +93,13 @@ class DuckDBStorage:
             # Register DataFrame as temporary table for upsert
             conn.execute("BEGIN TRANSACTION")
             try:
+                # Ensure Ticker column is string type and reorder columns to match table schema
+                # Table order: Date, Ticker, Open, High, Low, Close, Volume
+                df_ordered = df[["Date", "Ticker", "Open", "High", "Low", "Close", "Volume"]].copy()
+                df_ordered["Ticker"] = df_ordered["Ticker"].astype(str)
+                
                 # Register DataFrame as temporary table
-                conn.register("temp_df", df)
+                conn.register("temp_df", df_ordered)
                 
                 # Delete existing rows for matching tickers and dates
                 tickers = df["Ticker"].unique().tolist()
@@ -108,8 +113,12 @@ class DuckDBStorage:
                         [ticker, ticker],
                     )
                 
-                # Insert new data
-                conn.execute("INSERT INTO ohlcv SELECT * FROM temp_df")
+                # Insert new data - ensure column order matches table schema
+                # Table order: Date, Ticker, Open, High, Low, Close, Volume
+                conn.execute("""
+                    INSERT INTO ohlcv (Date, Ticker, Open, High, Low, Close, Volume)
+                    SELECT Date, Ticker, Open, High, Low, Close, Volume FROM temp_df
+                """)
                 conn.execute("COMMIT")
                 rows_affected = len(df)
                 logger.info(f"Upserted {rows_affected} rows for ticker(s): {tickers}")

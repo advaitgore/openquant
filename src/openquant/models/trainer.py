@@ -81,19 +81,29 @@ class ModelTrainer:
         if features_df.empty:
             raise ValueError(f"No features found for {ticker}")
 
-        # Get OHLCV data for target
-        ohlcv_df = self.storage.get_ohlcv(ticker, start_date, end_date)
-
-        # Merge features with OHLCV
-        if "Date" in features_df.columns and "Date" in ohlcv_df.columns:
-            df = pd.merge(features_df, ohlcv_df[["Date", target]], on="Date", how="inner")
-        else:
-            df = pd.concat([features_df, ohlcv_df[[target]]], axis=1)
-
-        # Create target (shift forward by lookback_days)
+        # Handle target variable
         if target == "returns":
-            df["target"] = df[target].shift(-lookback_days)
+            # If returns is already in features, use it directly
+            if "returns" in features_df.columns:
+                df = features_df.copy()
+                df["target"] = df["returns"].shift(-lookback_days)
+            else:
+                # Compute returns from Close price
+                ohlcv_df = self.storage.get_ohlcv(ticker, start_date, end_date)
+                if "Date" in features_df.columns and "Date" in ohlcv_df.columns:
+                    df = pd.merge(features_df, ohlcv_df[["Date", "Close"]], on="Date", how="inner")
+                else:
+                    df = pd.concat([features_df, ohlcv_df[["Close"]]], axis=1)
+                # Compute returns: (Close_t / Close_{t-1}) - 1
+                df["returns"] = df["Close"].pct_change()
+                df["target"] = df["returns"].shift(-lookback_days)
         else:
+            # For other targets (e.g., "Close"), get from OHLCV
+            ohlcv_df = self.storage.get_ohlcv(ticker, start_date, end_date)
+            if "Date" in features_df.columns and "Date" in ohlcv_df.columns:
+                df = pd.merge(features_df, ohlcv_df[["Date", target]], on="Date", how="inner")
+            else:
+                df = pd.concat([features_df, ohlcv_df[[target]]], axis=1)
             # For price targets, compute future return
             df["target"] = (df[target].shift(-lookback_days) / df[target] - 1)
 
@@ -103,8 +113,8 @@ class ModelTrainer:
         if df.empty:
             raise ValueError("No valid data after preprocessing")
 
-        # Select feature columns
-        feature_cols = [col for col in feature_names if col in df.columns]
+        # Select feature columns (exclude target if it's in the feature list to avoid using it as both feature and target)
+        feature_cols = [col for col in feature_names if col in df.columns and col != target]
         if not feature_cols:
             raise ValueError(f"None of the specified features found in data: {feature_names}")
 

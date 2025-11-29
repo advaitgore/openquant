@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 """Pydantic schemas for API request/response models."""
 
-from datetime import date
+from datetime import date as date_type
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -19,7 +21,7 @@ class HealthResponse(BaseModel):
 class OHLCVData(BaseModel):
     """OHLCV data point."""
 
-    date: date = Field(..., description="Trading date")
+    date: date_type = Field(..., description="Trading date")
     open: float = Field(..., description="Opening price")
     high: float = Field(..., description="High price")
     low: float = Field(..., description="Low price")
@@ -55,7 +57,7 @@ class FeatureRequest(BaseModel):
 class FeatureData(BaseModel):
     """Feature data point."""
 
-    date: Optional[date] = Field(None, description="Trading date")
+    date: Optional[date_type] = Field(None, description="Trading date")
     features: Dict[str, Optional[float]] = Field(..., description="Feature values")
 
 
@@ -107,7 +109,7 @@ class ModelPredictRequest(BaseModel):
 class PredictionData(BaseModel):
     """Prediction data point."""
 
-    date: Optional[date] = Field(None, description="Trading date")
+    date: Optional[date_type] = Field(None, description="Trading date")
     prediction: float = Field(..., description="Predicted value")
 
 

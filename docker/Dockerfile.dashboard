@@ -1,5 +1,5 @@
 # Streamlit dashboard Dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -12,14 +12,14 @@ RUN apt-get update && apt-get install -y \
 # Install uv for faster package management
 RUN pip install --no-cache-dir uv
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy dependency files and source code (needed for editable install)
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
 
 # Install dependencies
 RUN uv pip install --system --no-cache -e .
 
-# Copy application code
-COPY src/ ./src/
+# Copy additional application files
 COPY configs/ ./configs/
 
 # Create necessary directories

@@ -118,17 +118,30 @@ class ModelPredictor:
         # Make predictions
         predictions = model.predict(X)
 
+        # Get lookback_days from run params to shift prediction dates forward
+        lookback_days = int(run_params.get("lookback_days", 1))
+        target = run_params.get("target", "returns")
+
         # Create results DataFrame
         result_df = pd.DataFrame({
             "prediction": predictions,
         })
 
         if "Date" in features_df.columns:
-            result_df["Date"] = features_df["Date"].values
+            # Shift dates forward by lookback_days to show when prediction is FOR
+            dates = pd.to_datetime(features_df["Date"].values)
+            if lookback_days > 0:
+                # Shift forward by business days (trading days)
+                prediction_dates = dates + pd.offsets.BDay(lookback_days)
+            else:
+                prediction_dates = dates
+            result_df["Date"] = prediction_dates
+            result_df["feature_date"] = dates  # Keep original feature date for reference
+            
         if "Ticker" in features_df.columns:
             result_df["Ticker"] = features_df["Ticker"].values
 
-        logger.info(f"Made {len(predictions)} predictions for {ticker}")
+        logger.info(f"Made {len(predictions)} predictions for {ticker} (target: {target}, lookback: {lookback_days} days)")
         return result_df
 
     def predict_latest(

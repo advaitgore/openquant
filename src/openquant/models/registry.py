@@ -202,7 +202,20 @@ class ModelRegistry:
         """
         if model_type not in self._models:
             raise ValueError(f"Unknown model type: {model_type}")
-        return self._models[model_type](**kwargs)
+        
+        # Filter out invalid parameters for specific model types
+        filtered_kwargs = kwargs.copy()
+        
+        if model_type == "random_forest":
+            # RandomForest doesn't support learning_rate
+            filtered_kwargs.pop("learning_rate", None)
+        elif model_type == "linear_regression":
+            # LinearRegression doesn't support tree-based parameters
+            filtered_kwargs.pop("learning_rate", None)
+            filtered_kwargs.pop("max_depth", None)
+            filtered_kwargs.pop("n_estimators", None)
+        
+        return self._models[model_type](**filtered_kwargs)
 
     def list_models(self) -> list[str]:
         """List all registered model types.
